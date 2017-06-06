@@ -30,30 +30,36 @@ const (
 
 func main() {
 	// validateFlags() will exit on error
-	memSize, numThreads, numLoadedClasses, poolType, rawVmOptions := flags.ValidateFlags()
+	jreType, heapRatio, memSize, numThreads, numLoadedClasses, poolType, rawVmOptions := flags.ValidateFlags()
 
-	// default the number of threads if it was not supplied
-	if numThreads == 0 {
-		numThreads = 50
+	if jreType == "IBM" {
+		fmt.Fprint(os.Stdout, "-Xmx", memSize.Scale(heapRatio).String())
+	} else {
+		// default the number of threads if it was not supplied
+		if numThreads == 0 {
+			numThreads = 50
+		}
+
+		vmOptions, err := memory.NewVmOptions(rawVmOptions)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Problem with vmOptions: %s\n", err)
+			os.Exit(1)
+		}
+
+		allocator, err := memory.NewAllocator(poolType, vmOptions)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Cannot allocate JVM memory configuration: %s\n", err)
+			os.Exit(1)
+		}
+
+		if err = allocator.Calculate(numLoadedClasses, numThreads, memSize); err != nil {
+			fmt.Fprintf(os.Stderr, "Cannot calculate JVM memory configuration: %s\n", err)
+			os.Exit(1)
+		}
+
+		// Print outputs to standard output for consumption by the caller
+		fmt.Fprint(os.Stdout, allocator.String())
 	}
 
-	vmOptions, err := memory.NewVmOptions(rawVmOptions)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Problem with vmOptions: %s\n", err)
-		os.Exit(1)
-	}
-
-	allocator, err := memory.NewAllocator(poolType, vmOptions)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Cannot allocate JVM memory configuration: %s\n", err)
-		os.Exit(1)
-	}
-
-	if err = allocator.Calculate(numLoadedClasses, numThreads, memSize); err != nil {
-		fmt.Fprintf(os.Stderr, "Cannot calculate JVM memory configuration: %s\n", err)
-		os.Exit(1)
-	}
-
-	// Print outputs to standard output for consumption by the caller
-	fmt.Fprint(os.Stdout, allocator.String())
+	
 }
