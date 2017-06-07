@@ -30,11 +30,13 @@ const (
 
 func main() {
 	// validateFlags() will exit on error
-	jreType, heapRatio, memSize, numThreads, numLoadedClasses, poolType, rawVmOptions := flags.ValidateFlags()
+	jreType := flags.ValidateJreType() 
 
 	if jreType == "IBM" {
+		memSize, heapRatio := flags.ValidateFlagsForIBM()
 		fmt.Fprint(os.Stdout, "-Xmx", memSize.Scale(heapRatio).String())
 	} else {
+		memSize, numThreads, numLoadedClasses, poolType, rawVmOptions := flags.ValidateFlags()
 		// default the number of threads if it was not supplied
 		if numThreads == 0 {
 			numThreads = 50
