@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/cloudfoundry/java-buildpack-memory-calculator/memory"
 )
@@ -28,7 +27,7 @@ import (
 const (
 	executableName    = "java-buildpack-memory-calculator"
 	jreFlag           = "jre"
-	heapFlag          = "heapRatio"
+	heapRatioFlag     = "heapRatio"
 	totalFlag         = "totMemory"
 	threadsFlag       = "stackThreads"
 	loadedClassesFlag = "loadedClasses"
@@ -50,9 +49,9 @@ func printHelp() {
 var (
 	help = flag.Bool("help", false, "prints description and flag help")
 
-	JreName = flag.String(jreFlag, "", 
+	jreName = flag.String(jreFlag, "", 
 		"JRE type used is expressed e.g. 'OpenJDK'")
-	heapPercentage = flag.String(heapFlag, "", 
+	heapPercentage = flag.Float64(heapRatioFlag, 0, 
 		"The heap ratio is defined as per user requires in float >0 and <1 e.g. 0.75")
 	totMemory =flag.String(totalFlag, "",
 		"total memory available to allocate, expressed as an integral "+
@@ -68,15 +67,7 @@ var (
 )
 
 func ValidateFlagsForIBM() (memSize memory.MemSize, heapRatio float64) {
-	flag.Parse() // exit on error
 
-	if noArgs(os.Args[1:]) || helpArg() {
-		printHelp()
-		os.Exit(2)
-	}
-
-	// validation routines will not return on error
-	validateNoArguments()
 	counterCheckStackThreads(*stackThreads)
 	counterCheckLoadedClasses(*loadedClasses)
 	counterCheckPoolType(*poolType)
@@ -107,25 +98,16 @@ func counterCheckPoolType(poolType string) {
 	}
 }
 
-func counterCheckHeapRatio(heapPercentage string) {
-	if heapPercentage != "" {
-		fmt.Fprintf(os.Stderr, "-%s Flag is not required in case of using IBM JAVA", heapFlag)
+func counterCheckHeapRatio(heapPercentage float64) {
+	if heapPercentage != 0 {
+		fmt.Fprintf(os.Stderr, "-%s Flag is not required in case of using OpenJDK", heapRatioFlag)
 		os.Exit(1)
 	}
 }
 
 // Validate flags passed on command line; exit(1) if invalid; exit(2) if help printed
-func ValidateFlags() (memSize memory.MemSize, numThreads int, numLoadedClasses int, pType string, vmOpts string) {
+func ValidateFlagsForOpenJDK() (memSize memory.MemSize, numThreads int, numLoadedClasses int, pType string, vmOpts string) {
 
-	flag.Parse() // exit on error
-
-	if noArgs(os.Args[1:]) || helpArg() {
-		printHelp()
-		os.Exit(2)
-	}
-
-	// validation routines will not return on error
-	validateNoArguments()
 	counterCheckHeapRatio(*heapPercentage)
 	memSize = validateTotMemory(*totMemory)
 	numThreads = validateNumThreads(*stackThreads)
@@ -157,31 +139,26 @@ func ValidateJreType() string {
 	}
 
 	validateNoArguments()
-	if *JreName == "" {
-		*JreName = "OpenJDK"
-	} else if *JreName != "IBM" {
-		fmt.Fprintf(os.Stderr, "-%s value is invalid", heapFlag)
+	if *jreName == "" {
+		*jreName = "OpenJDK"
+	} else if *jreName != "IBM" {
+		fmt.Fprintf(os.Stderr, "-%s value is invalid", heapRatioFlag)
 		os.Exit(1)
 	}
-	return *JreName
+	return *jreName
 }
 
-func validateHeapRatio(heapRatio string) float64 {
-	if heapRatio == "" {
-		fmt.Fprintf(os.Stderr, "-%s must be specified", heapFlag)
+func validateHeapRatio(heapRatio float64) float64 {
+	if heapRatio == 0 {
+		fmt.Fprintf(os.Stderr, "-%s must be specified", heapRatioFlag)
 		os.Exit(1)
 	}
-	heapratio, err := strconv.ParseFloat(heapRatio, 64)
-	if err == nil {
-		if heapratio > 1 || heapratio < 0 {
-			fmt.Fprintf(os.Stderr, "Invalid heap ratio in flag -%s", heapFlag)
-			os.Exit(1)
-		}
-	} else {
-		fmt.Fprintf(os.Stderr, "Invalid heap ratio in flag -%s", heapFlag)
+	if heapRatio > 1 || heapRatio < 0 {
+		fmt.Fprintf(os.Stderr, "Invalid heap ratio in flag -%s", heapRatioFlag)
 		os.Exit(1)
 	}
-	return heapratio
+
+	return heapRatio
 }
 
 func validateNoArguments() {

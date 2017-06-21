@@ -36,7 +36,7 @@ func main() {
 		memSize, heapRatio := flags.ValidateFlagsForIBM()
 		fmt.Fprint(os.Stdout, "-Xmx", memSize.Scale(heapRatio).String())
 	} else {
-		memSize, numThreads, numLoadedClasses, poolType, rawVmOptions := flags.ValidateFlags()
+		memSize, numThreads, numLoadedClasses, poolType, rawVmOptions := flags.ValidateFlagsForOpenJDK()
 		// default the number of threads if it was not supplied
 		if numThreads == 0 {
 			numThreads = 50
